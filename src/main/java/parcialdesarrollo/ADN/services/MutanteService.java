@@ -18,9 +18,7 @@ public class MutanteService {
 
     public boolean analyzeDna(String[] dna){
 
-        boolean isMutantAN = isMutant(dna);
-
-        return isMutantAN;
+        return isMutant(dna);
     }
 
     public static boolean isMutant(String[] dna){

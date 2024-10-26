@@ -22,5 +22,5 @@ public class Mutante implements Serializable {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
 
-    private String[] dna;
+    private String dna;
 }

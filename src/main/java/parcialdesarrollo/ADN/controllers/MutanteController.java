@@ -10,6 +10,9 @@ import org.springframework.web.bind.annotation.RestController;
 import parcialdesarrollo.ADN.entities.Mutante;
 import parcialdesarrollo.ADN.services.MutanteService;
 
+import java.util.List;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/mutant")
 public class MutanteController {
@@ -24,9 +27,13 @@ public class MutanteController {
 
 
     @PostMapping
-    public ResponseEntity<?> esMutante(@RequestBody Mutante mutante){
+    public ResponseEntity<?> esMutante(@RequestBody Map<String,List<String>> request){
 
-        boolean isMutant = mutanteService.analyzeDna(mutante.getDna());
+        List<String> dnaList = request.get("dna");
+        String[] dna = dnaList.toArray(new String[0]);
+
+        boolean isMutant = mutanteService.analyzeDna(dna);
+
 
         if (isMutant) {
             return  ResponseEntity.status(HttpStatus.OK).body("El ADN pertenece a un mutante");
