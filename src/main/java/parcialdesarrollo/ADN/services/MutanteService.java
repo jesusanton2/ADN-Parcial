@@ -2,7 +2,12 @@ package parcialdesarrollo.ADN.services;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import parcialdesarrollo.ADN.entities.Mutante;
 import parcialdesarrollo.ADN.repositories.MutanteRepository;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 
 @Service
 public class MutanteService {
@@ -17,140 +22,144 @@ public class MutanteService {
 
 
     public boolean analyzeDna(String[] dna){
+        String dnaString = String.join(",", dna);
 
-        return isMutant(dna);
+        Optional<Mutante> existByDna = mutanteRepository.findByDna(dnaString);
+            if(existByDna.isPresent()){
+                return existByDna.get().isMutante();
+            }
+
+      char[][]  dnaMatriz = convertToChar(dna);
+
+            boolean isMutant = isMutant(dnaMatriz);
+         Mutante mutanteEntity = Mutante.builder()
+                 .dna(dnaString)
+                 .isMutante(isMutant)
+                 .build();
+         mutanteRepository.save(mutanteEntity);
+         System.out.println("EntidadGuardada");
+        return isMutant(dnaMatriz);
     }
 
-    public static boolean isMutant(String[] dna){
+    public Map<String, Object> getStats() {
+        long countMutantDna = mutanteRepository.countByIsMutante(true);
+        long countHumanDna = mutanteRepository.countByIsMutante(false);
+        double ratio = countHumanDna == 0 ? 0 : (double) countMutantDna / countHumanDna;
 
-        int contador = 0;
-        char[][] dnaAux = convertToChar(dna);
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("count_mutant_dna", countMutantDna);
+        stats.put("count_human_dna", countHumanDna);
+        stats.put("ratio", ratio);
 
-        boolean[][] visited = new boolean[dnaAux.length][dnaAux.length];
+        return stats;
+    }
 
 
 
-        for (int i = 0; i < dna.length; i++) {
-            for (int j = 0; j < dna.length; j++) {
-                if (!visited[i][j]) {
-                    if (searchHorizontal(i, j, dnaAux, visited)) {
-                        contador++;
-                    }
-                    if (searchVertical(i, j, dnaAux, visited)) {
-                        contador++;
-                    }
-                    if (searchDiagonal(i, j, dnaAux, visited)) {
-                        contador++;
-                    }
-                    if (searchDiagonalInversa(i, j, dnaAux, visited)) {
-                        contador++;
-                    }
+    public static boolean isMutant(char[][] dnaAux){
+
+
+        int N = dnaAux.length;
+        int countSequence = 0;
+        String fila , columna , diagonalAscDer , diagonalAscIzq ;
+
+        for(int i = 0; i < N ; i++){
+            fila = convertRowToText(dnaAux, i);
+            countSequence = countSequence + search(fila);
+            if(countSequence > 1){
+                System.out.println("Mutante");
+                return true;
+            }
+        }
+
+        for(int j = 0; j < N ; j++){
+            columna = convertColumnToText(dnaAux, j);
+            countSequence = countSequence +  search(columna);
+            if(countSequence > 1){
+
+                System.out.println("Mutante");
+                return true;
+            }
+        }
+
+        for (int i = 0; i < N; i++) {
+            diagonalAscDer = convertDiagonalAscRightToText(dnaAux, i, 0);  // Diagonales hacia la derecha desde la primera columna
+            countSequence += search(diagonalAscDer);
+            if (countSequence > 1) {
+                System.out.println("Mutante");
+                return true;
+            }
+
+            if (i != 0) {  // Evitamos duplicar la diagonal desde la esquina superior izquierda
+                diagonalAscIzq = convertDiagonalAscLeftToText(dnaAux, i, N - 1);  // Diagonales hacia la izquierda desde la última columna
+                countSequence += search(diagonalAscIzq);
+                if (countSequence > 1) {
+                    System.out.println("Mutante");
+                    return true;
                 }
             }
         }
 
-        if (contador >= 2) {
-            return true;
-        } else {
-            return false;
-        }
+        System.out.println("No Mutante");
+        return false;
     }
 
+    public static int search(String text){
+        int i = 0 , j =0;
+        char letra = text.charAt(i);
+        int count = 1,sequence = 0;
+        i++;
+        while(i < text.length() && sequence < 2){
 
 
+            if(text.charAt(i ) == letra){
+                count++;
+                if(count == 4){
+                    sequence++;
+                    count = 0;
 
-
-
-    public static boolean searchHorizontal(int fila, int columna, char[][] dnaAux, boolean[][] visited) {
-        int N = dnaAux.length;
-        char x = dnaAux[fila][columna];
-
-        if (columna + 3 >= N) {  // Verifica si hay espacio suficiente
-            return false;
-        }
-
-        for (int i = columna; i < columna + 4; i++) {
-            if (dnaAux[fila][i] != x || visited[fila][i]) {
-                return false;
+                }
+            }else if(text.charAt(i) != letra){
+                letra = text.charAt(i);
+                count = 1 ;
             }
+            i++;
         }
 
-        // Marca las celdas como visitadas
-        for (int i = columna; i < columna + 4; i++) {
-            visited[fila][i] = true;
-        }
-        return true;
+        return sequence;
     }
 
-    // Búsqueda vertical con marcado de visitadas
-    public static boolean searchVertical(int fila, int columna, char[][] dnaAux, boolean[][] visited) {
-        int N = dnaAux.length;
-        char y = dnaAux[fila][columna];
-
-        if (fila + 3 >= N) {  // Verifica si hay espacio suficiente
-            return false;
-        }
-
-        for (int i = fila; i < fila + 4; i++) {
-            if (dnaAux[i][columna] != y || visited[i][columna]) {
-                return false;
-            }
-        }
-
-        // Marca las celdas como visitadas
-        for (int i = fila; i < fila + 4; i++) {
-            visited[i][columna] = true;
-        }
-        return true;
-    }
-
-    // Búsqueda diagonal hacia abajo con marcado de visitadas
-    public static boolean searchDiagonal(int fila, int columna, char[][] dnaAux, boolean[][] visited) {
-        int N = dnaAux.length;
-        char xy = dnaAux[fila][columna];
-
-        if (fila + 3 >= N || columna + 3 >= N) {  // Verifica si hay espacio suficiente
-            return false;
-        }
-
-        for (int k = 0; k < 4; k++) {
-            if (dnaAux[fila + k][columna + k] != xy || visited[fila + k][columna + k]) {
-                return false;
-            }
-        }
-
-        // Marca las celdas como visitadas
-        for (int k = 0; k < 4; k++) {
-            visited[fila + k][columna + k] = true;
-        }
-        return true;
-    }
-
-    // Búsqueda diagonal inversa hacia arriba con marcado de visitadas
-    public static boolean searchDiagonalInversa(int fila, int columna, char[][] dnaAux, boolean[][] visited) {
-        int N = dnaAux.length;
-        char xy = dnaAux[fila][columna];
-
-        if (fila - 3 < 0 || columna + 3 >= N) {  // Verifica si hay espacio suficiente
-            return false;
-        }
-
-        for (int k = 0; k < 4; k++) {
-            if (dnaAux[fila - k][columna + k] != xy || visited[fila - k][columna + k]) {
-                return false;
-            }
-        }
-
-        // Marca las celdas como visitadas
-        for (int k = 0; k < 4; k++) {
-            visited[fila - k][columna + k] = true;
-        }
-        return true;
+    public static String convertRowToText(char[][] dnaAux, int fila){
+        return new String(dnaAux[fila]);
     }
 
 
+    public static String convertColumnToText(char[][] dnaAux, int col) {
+        StringBuilder columna = new StringBuilder();
+        for (int i = 0; i < dnaAux.length; i++) {
+            columna.append(dnaAux[i][col]);
+        }
+        return columna.toString();
+    }
 
+    public static String convertDiagonalAscRightToText(char[][] dnaAux, int fila, int columna) {
+        StringBuilder diagonal = new StringBuilder();
 
+        for (int i = fila, j = columna; i >= 0 && j < dnaAux.length; i--, j++) {
+            diagonal.append(dnaAux[i][j]);
+        }
+
+        return diagonal.toString();
+    }
+    public static String convertDiagonalAscLeftToText(char[][] dnaAux, int fila, int columna) {
+        StringBuilder diagonal = new StringBuilder();
+
+        for (int i = fila, j = columna; i >= 0 && j >= 0; i--, j--) {
+            diagonal.append(dnaAux[i][j]);
+        }
+
+        return diagonal.toString();
+    }
 
     public  static char[][] convertToChar(String[] dna){
 

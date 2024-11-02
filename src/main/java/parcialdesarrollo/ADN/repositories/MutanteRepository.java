@@ -9,6 +9,7 @@ import java.util.Optional;
 @Repository
 public interface MutanteRepository extends JpaRepository<Mutante, Long> {
 
+   Optional<Mutante> findByDna (String dna);
 
-
+   long countByIsMutante(boolean isMutante);
 }
